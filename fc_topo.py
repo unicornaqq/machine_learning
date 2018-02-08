@@ -34,45 +34,34 @@ def find_hostconfcli2(start_point):
                 else:
                     find_hostconfcli2(os.path.join(start_point, directory))
 
+def clustering(input_list):
+    words = np.asarray(input_list)
+    print words
+    lev_similarity = -1*np.array([[distance.levenshtein(w1,w2) for w1 in words] for w2 in words])
+    print lev_similarity[lev_similarity != 0].min()
+    print lev_similarity[lev_similarity != 0].max()
+    print np.median(lev_similarity)
 
+    temp_list = list()
+
+    affprop = sklearn.cluster.AffinityPropagation(preference=-40, affinity="precomputed", damping=0.5)
+    affprop.fit(lev_similarity)
+    for cluster_id in np.unique(affprop.labels_):
+        exemplar = words[affprop.cluster_centers_indices_[cluster_id]] 
+        temp_list.append(exemplar)
+        cluster = np.unique(words[np.nonzero(affprop.alabels_==cluster_id)])
+        cluster_str = "\n ".join(cluster)
+        print(" - *%s:* \n%s" % (exemplar, cluster_str))
+
+    return temp_list
 
 if __name__ == "__main__":
     pool = Pool(40)
     results = pool.map(find_hostconfcli, os.listdir("./"), chunksize=5)
     unique_result = list(set(itertools.chain.from_iterable([x for x in results if x is not None])))
     
-    words = np.asarray(unique_result)
-    print words
-    lev_similarity = -1*np.array([[distance.levenshtein(w1,w2) for w1 in words] for w2 in words])
-    print lev_similarity[lev_similarity != 0].min()
-    print lev_similarity[lev_similarity != 0].max()
-    print np.median(lev_similarity)
+    examplar_list = clustering(unique_result)
     
-    # this list is used to hold the list of exemplars from the first level of clustring
-    temp_list = list()
+    second_level_examplar_list = clustering(examplar_list)
 
-    # this is for the first level of clustring, and we can get list of exemplars
-    affprop = sklearn.cluster.AffinityPropagation(preference=-40, affinity="precomputed", damping=0.5)
-    affprop.fit(lev_similarity)
-    for cluster_id in np.unique(affprop.labels_):
-        exemplar = words[affprop.cluster_centers_indices_[cluster_id]]
-        temp_list.append(exemplar)
-        cluster = np.unique(words[np.nonzero(affprop.labels_==cluster_id)])
-        cluster_str = "\n ".join(cluster)
-        print(" - *%s:* \n%s" % (exemplar, cluster_str))
-
-    # this is secondary level of clustering, not sure if it works.
-    second_level_words = np.asarray(temp_list)
-    print second_level_words
-    second_level_lev_similarity = -1*np.array([[distance.levenshtein(w1,w2) for w1 in second_level_words] for w2 in second_level_words]) 
-    print second_level_lev_similarity[second_level_lev_similarity != 0].min()
-    print second_level_lev_similarity[second_level_lev_similarity != 0].max()
-    print np.median(second_level_lev_similarity)
-
-    affprop = sklearn.cluster.AffinityPropagation(preference=-81, affinity="precomputed", damping=0.5)
-    affprop.fit(second_level_lev_similarity)
-    for cluster_id in np.unique(affprop.labels_):
-        exemplar = second_level_words[affprop.cluster_centers_indices_[cluster_id]]
-        cluster = np.unique(second_level_words[np.nonzero(affprop.labels_==cluster_id)])
-        cluster_str = "\n ".join(cluster)
-        print(" - *%s:* \n%s" % (exemplar, cluster_str))
+    
